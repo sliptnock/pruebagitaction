@@ -100,7 +100,7 @@ jobs:
           response = client.statement_execution.execute_statement(
               warehouse_id = os.environ["DATABRICKS_WAREHOUSE_ID"],
               statement    = sql_text,
-              wait_timeout = "60s"
+              wait_timeout = "50s"
           )
 
           status = response.status.state
