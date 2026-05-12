@@ -17,6 +17,7 @@ provider_id bigint comment '',
 provider_metastore_id string comment '',
 created_at timestamp comment ''
 )
+--
 --USING DELTA
 --LOCATION 'PRM_STORAGELOCATION/$PRM_AMB/bcp/silver/credicorp/metastoreprovider/data/Provider'
 --TBLPROPERTIES(
