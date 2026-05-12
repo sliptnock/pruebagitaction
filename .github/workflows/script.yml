@@ -53,25 +53,52 @@ jobs:
       - name: Install Databricks SDK
         run: pip install databricks-sdk
 
+      - name: Validate secrets
+        env:
+          DATABRICKS_HOST:         ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN:        ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_WAREHOUSE_ID: ${{ secrets.DATABRICKS_CLUSTER_ID }}
+        run: |
+          echo "Host length   : ${#DATABRICKS_HOST}"
+          echo "Token length  : ${#DATABRICKS_TOKEN}"
+          echo "Warehouse len : ${#DATABRICKS_WAREHOUSE_ID}"
+
+          if [[ -z "$DATABRICKS_HOST" || -z "$DATABRICKS_TOKEN" || -z "$DATABRICKS_WAREHOUSE_ID" ]]; then
+            echo "ERROR: Uno o más secrets están vacíos. Verifica la configuración del ambiente en GitHub."
+            exit 1
+          fi
+
+          if [[ "$DATABRICKS_HOST" == */ ]]; then
+            echo "ERROR: DATABRICKS_HOST no debe terminar con '/'. Corrígelo en los secrets."
+            exit 1
+          fi
+
+          echo "Secrets validados correctamente."
+
       - name: Execute SQL on Databricks
+        env:
+          DATABRICKS_HOST:         ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN:        ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_WAREHOUSE_ID: ${{ secrets.DATABRICKS_CLUSTER_ID }}
         run: |
           python - <<'EOF'
+          import os, sys
           from databricks.sdk import WorkspaceClient
           from databricks.sdk.service.sql import StatementState
-          import sys
 
           client = WorkspaceClient(
-              host  = "${{ secrets.DATABRICKS_HOST }}",
-              token = "${{ secrets.DATABRICKS_TOKEN }}"
+              host  = os.environ["DATABRICKS_HOST"],
+              token = os.environ["DATABRICKS_TOKEN"]
           )
 
           with open("scripts/DDL_UDV_PROVIDER.sql", "r") as f:
               sql_text = f.read()
 
-          print(f"Ejecutando SQL en ambiente: ${{ env.ENV_NAME }}")
+          print(f"Ejecutando SQL en ambiente: {os.environ.get('ENV_NAME', 'DESCONOCIDO')}")
+          print(f"Host: {os.environ['DATABRICKS_HOST']}")
 
           response = client.statement_execution.execute_statement(
-              warehouse_id = "${{ secrets.DATABRICKS_CLUSTER_ID }}",
+              warehouse_id = os.environ["DATABRICKS_WAREHOUSE_ID"],
               statement    = sql_text,
               wait_timeout = "60s"
           )
