@@ -1,8 +1,8 @@
 --Databricks notebook source
 -- COMMAND ---------
-CREATE WIDGET TEXT PRM_STORAGELOCATION DEFAULT '';
-CREATE WIDGET TEXT PRM_CATALOG_NAME DEFAULT '';
-CREATE WIDGET TEXT PRM_AMB DEFAULT '';
+--CREATE WIDGET TEXT PRM_STORAGELOCATION DEFAULT '';
+--CREATE WIDGET TEXT PRM_CATALOG_NAME DEFAULT '';
+--CREATE WIDGET TEXT PRM_AMB DEFAULT '';
 
 -- COMMAND ---------
 USE CATALOG ${PRM_CATALOG_NAME};
@@ -17,7 +17,6 @@ provider_id bigint comment '',
 provider_metastore_id string comment '',
 created_at timestamp comment ''
 )
---
 --USING DELTA
 --LOCATION 'PRM_STORAGELOCATION/$PRM_AMB/bcp/silver/credicorp/metastoreprovider/data/Provider'
 --TBLPROPERTIES(

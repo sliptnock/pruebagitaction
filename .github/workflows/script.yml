@@ -80,6 +80,7 @@ jobs:
           DATABRICKS_HOST:         ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN:        ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_WAREHOUSE_ID: ${{ secrets.DATABRICKS_CLUSTER_ID }}
+          PRM_CATALOG_NAME:        ${{ secrets.PRM_CATALOG_NAME }}
         run: |
           python - <<'EOF'
           import os, sys
@@ -93,6 +94,9 @@ jobs:
 
           with open("scripts/DDL_UDV_PROVIDER.sql", "r") as f:
               sql_text = f.read()
+          
+          # Reemplaza los placeholders con los valores reales
+          sql_text = sql_text.replace("${PRM_CATALOG_NAME}",    os.environ["PRM_CATALOG_NAME"])
 
           print(f"Ejecutando SQL en ambiente: {os.environ.get('ENV_NAME', 'DESCONOCIDO')}")
           print(f"Host: {os.environ['DATABRICKS_HOST']}")
@@ -104,7 +108,14 @@ jobs:
           )
 
           status = response.status.state
-          print(f"Estado final: {status}")
+          if status in (StatementState.PENDING, StatementState.RUNNING):
+              statement_id = response.statement_id
+              print("Polling...")
+              while status in (StatementState.PENDING, StatementState.RUNNING):
+                  time.sleep(5)
+                  response = client.statement_execution.get_statement(statement_id)
+                  status   = response.status.state
+                  print(f"  Estado: {status}")
 
           if status != StatementState.SUCCEEDED:
               print("ERROR:", response.status.error)
