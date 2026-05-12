@@ -1,0 +1,87 @@
+name: Deploy Table to Databricks
+
+on:
+  push:
+    branches:
+      - main           # Producción
+      - construccion   # Desarrollo
+    paths:
+      - 'scripts/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente a desplegar'
+        required: true
+        default: 'desarrollo'
+        type: choice
+        options:
+          - desarrollo
+          - produccion
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # Determina el ambiente según la rama o el input manual
+    environment: ${{ 
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'produccion') ||
+      github.ref == 'refs/heads/main' 
+      && 'produccion' || 'desarrollo' }}
+
+    env:
+      ENV_NAME: ${{
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'produccion') ||
+        github.ref == 'refs/heads/main'
+        && 'PRODUCCION' || 'DESARROLLO' }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Show deployment target
+        run: |
+          echo "========================================"
+          echo " Rama   : ${{ github.ref_name }}"
+          echo " Ambiente: ${{ env.ENV_NAME }}"
+          echo "========================================"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Databricks SDK
+        run: pip install databricks-sdk
+
+      - name: Execute SQL on Databricks
+        run: |
+          python - <<'EOF'
+          from databricks.sdk import WorkspaceClient
+          from databricks.sdk.service.sql import StatementState
+          import sys
+
+          client = WorkspaceClient(
+              host  = "${{ secrets.DATABRICKS_HOST }}",
+              token = "${{ secrets.DATABRICKS_TOKEN }}"
+          )
+
+          with open("scripts/DDL_UDV_PROVIDER.sql", "r") as f:
+              sql_text = f.read()
+
+          print(f"Ejecutando SQL en ambiente: ${{ env.ENV_NAME }}")
+
+          response = client.statement_execution.execute_statement(
+              warehouse_id = "${{ secrets.DATABRICKS_CLUSTER_ID }}",
+              statement    = sql_text,
+              wait_timeout = "60s"
+          )
+
+          status = response.status.state
+          print(f"Estado final: {status}")
+
+          if status != StatementState.SUCCEEDED:
+              print("ERROR:", response.status.error)
+              sys.exit(1)
+
+          print("Tabla creada exitosamente.")
+          EOF
